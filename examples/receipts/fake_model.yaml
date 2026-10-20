@@ -1,0 +1,114 @@
+# Scripted answers for the offline demo. Rules match the rendered prompt top to
+# bottom; responses are cycled by trial index (so `repeat: 6` then one bad answer
+# then `repeat: 3` is a model that is right 9 times in 10).
+#
+# fake-extractor-a = baseline: mostly right, occasionally flaky.
+# fake-extractor-b = candidate: fixes some flakiness, but misreads
+#                    "Rp 1.250.000,00" as 1250 every time.
+
+rules:
+  # ---------------------------------------------------------------- candidate (b)
+  - model: fake-extractor-b
+    when: MINIMARKET UJI COBA
+    responses:
+      - repeat: 2
+        latency_ms: 610
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 45500, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+      - latency_ms: 640
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 50000, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+      - repeat: 4
+        latency_ms: 590
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 45500, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+      - latency_ms: 655
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 50000, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+      - repeat: 2
+        latency_ms: 600
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 45500, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+
+  - model: fake-extractor-b
+    when: TOKO BANGUNAN CONTOH
+    responses:
+      - latency_ms: 720
+        text: '{"merchant": "Toko Bangunan Contoh Makmur", "date": "2026-06-03", "currency": "IDR", "total": 1250, "payment_method": "transfer", "items": [{"name": "Semen 50kg", "qty": 10, "line_total": 650}, {"name": "Cat tembok 5kg", "qty": 4, "line_total": 600}]}'
+
+  - model: fake-extractor-b
+    when: KEDAI KOPI DEMO
+    responses:
+      - latency_ms: 560
+        text: '{"merchant": "Kedai Kopi Demo", "date": "2026-06-25", "currency": "IDR", "total": 63900, "payment_method": "qris", "items": [{"name": "Kopi Susu Gula Aren", "qty": 2, "line_total": 44000}, {"name": "Croissant Mentega", "qty": 1, "line_total": 27000}]}'
+
+  - model: fake-extractor-b
+    when: BENGKEL FIKTIF
+    responses:
+      - repeat: 6
+        latency_ms: 580
+        text: '{"merchant": "Bengkel Fiktif Motor Jaya", "date": "2026-07-09", "currency": "IDR", "total": 180000, "payment_method": "transfer", "items": [{"name": "Ganti oli mesin", "qty": 1, "line_total": 55000}, {"name": "Kampas rem depan", "qty": 1, "line_total": 85000}, {"name": "Jasa servis", "qty": 1, "line_total": 40000}]}'
+      - latency_ms: 600
+        text: '{"merchant": "Bengkel Fiktif Motor Jaya", "date": "2026-07-09", "currency": "IDR", "total": 180000, "payment_method": "other", "items": [{"name": "Ganti oli mesin", "qty": 1, "line_total": 55000}, {"name": "Kampas rem depan", "qty": 1, "line_total": 85000}, {"name": "Jasa servis", "qty": 1, "line_total": 40000}]}'
+      - repeat: 3
+        latency_ms: 570
+        text: '{"merchant": "Bengkel Fiktif Motor Jaya", "date": "2026-07-09", "currency": "IDR", "total": 180000, "payment_method": "transfer", "items": [{"name": "Ganti oli mesin", "qty": 1, "line_total": 55000}, {"name": "Kampas rem depan", "qty": 1, "line_total": 85000}, {"name": "Jasa servis", "qty": 1, "line_total": 40000}]}'
+
+  # ----------------------------------------------------- baseline (a) and shared
+  - when: MINIMARKET UJI COBA
+    responses:
+      - repeat: 6
+        latency_ms: 620
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 45500, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+      - latency_ms: 650
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 50000, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+      - repeat: 3
+        latency_ms: 610
+        text: '{"merchant": "Minimarket Uji Coba 24 Jam", "date": "2026-03-14", "currency": "IDR", "total": 45500, "payment_method": "cash", "items": [{"name": "Roti Tawar Gandum", "qty": 1, "line_total": 18500}, {"name": "Susu UHT Coklat 1L", "qty": 1, "line_total": 19900}, {"name": "Air Mineral 600ml", "qty": 2, "line_total": 7100}]}'
+
+  - when: WARUNG MAKAN FIKTIF
+    responses:
+      - latency_ms: 480
+        text: '{"merchant": "Warung Makan Fiktif Bu Sampel", "date": "2026-04-02", "currency": "IDR", "total": 50000, "payment_method": "cash", "items": [{"name": "Nasi + ayam goreng", "qty": 2, "line_total": 36000}, {"name": "Es teh manis", "qty": 2, "line_total": 8000}, {"name": "Kerupuk", "qty": 3, "line_total": 6000}]}'
+
+  - when: APOTEK SAMPEL SEHAT
+    # The first two attempts of every trial fail with 429 then 503: the run
+    # still passes, and each trial record shows attempts: 3.
+    fail_attempts: [429, 503]
+    responses:
+      - latency_ms: 530
+        text: '{"merchant": "Apotek Sampel Sehat", "date": "2026-05-21", "currency": "IDR", "total": 133200, "payment_method": "card", "items": [{"name": "Paracetamol 500mg strip", "qty": 2, "line_total": 24000}, {"name": "Vitamin C 1000 tab", "qty": 1, "line_total": 96000}]}'
+
+  - when: TOKO BANGUNAN CONTOH
+    responses:
+      - latency_ms: 700
+        text: '{"merchant": "Toko Bangunan Contoh Makmur", "date": "2026-06-03", "currency": "IDR", "total": 1250000, "payment_method": "transfer", "items": [{"name": "Semen 50kg", "qty": 10, "line_total": 650000}, {"name": "Cat tembok 5kg", "qty": 4, "line_total": 600000}]}'
+
+  - when: KEDAI KOPI DEMO
+    responses:
+      - repeat: 3
+        latency_ms: 540
+        text: '{"merchant": "Kedai Kopi Demo", "date": "2026-06-25", "currency": "IDR", "total": 63900, "payment_method": "qris", "items": [{"name": "Kopi Susu Gula Aren", "qty": 2, "line_total": 44000}, {"name": "Croissant Mentega", "qty": 1, "line_total": 27000}]}'
+      - latency_ms: 610
+        text: '{"merchant": "Kedai Kopi Demo", "date": "2026-06-25", "currency": "IDR", "total": 63900, "payment_method": "qris", "items": [{"name": "Kopi Susu Gula Aren", "qty": 2, "line_total": 44000}, {"name": "Croissant Mentega", "qty": 1, "line_total": 27000}, {"name": "Kantong Plastik", "qty": 1, "line_total": 0}]}'
+      - repeat: 6
+        latency_ms: 550
+        text: '{"merchant": "Kedai Kopi Demo", "date": "2026-06-25", "currency": "IDR", "total": 63900, "payment_method": "qris", "items": [{"name": "Kopi Susu Gula Aren", "qty": 2, "line_total": 44000}, {"name": "Croissant Mentega", "qty": 1, "line_total": 27000}]}'
+
+  - when: LAUNDRY SAMPEL BERSIH
+    responses:
+      - latency_ms: 470
+        text: '{"merchant": "Laundry Sampel Bersih", "date": "2026-07-01", "currency": "IDR", "total": 36000, "payment_method": "qris", "items": [{"name": "Cuci setrika", "qty": 4.5, "line_total": 36000}]}'
+
+  - when: BENGKEL FIKTIF
+    responses:
+      - repeat: 4
+        latency_ms: 560
+        text: '{"merchant": "Bengkel Fiktif Motor Jaya", "date": "2026-07-09", "currency": "IDR", "total": 180000, "payment_method": "transfer", "items": [{"name": "Ganti oli mesin", "qty": 1, "line_total": 55000}, {"name": "Kampas rem depan", "qty": 1, "line_total": 85000}, {"name": "Jasa servis", "qty": 1, "line_total": 40000}]}'
+      - latency_ms: 590
+        text: '{"merchant": "Bengkel Fiktif Motor Jaya", "date": "2026-07-09", "currency": "IDR", "total": 180000, "payment_method": "other", "items": [{"name": "Ganti oli mesin", "qty": 1, "line_total": 55000}, {"name": "Kampas rem depan", "qty": 1, "line_total": 85000}, {"name": "Jasa servis", "qty": 1, "line_total": 40000}]}'
+      - repeat: 4
+        latency_ms: 560
+        text: '{"merchant": "Bengkel Fiktif Motor Jaya", "date": "2026-07-09", "currency": "IDR", "total": 180000, "payment_method": "transfer", "items": [{"name": "Ganti oli mesin", "qty": 1, "line_total": 55000}, {"name": "Kampas rem depan", "qty": 1, "line_total": 85000}, {"name": "Jasa servis", "qty": 1, "line_total": 40000}]}'
+      - latency_ms: 600
+        text: '{"merchant": "Bengkel Fiktif Motor Jaya", "date": "2026-07-09", "currency": "IDR", "total": 180000, "payment_method": "other", "items": [{"name": "Ganti oli mesin", "qty": 1, "line_total": 55000}, {"name": "Kampas rem depan", "qty": 1, "line_total": 85000}, {"name": "Jasa servis", "qty": 1, "line_total": 40000}]}'
+
+  - when: RESTORAN CONTOH NUSANTARA
+    responses:
+      - latency_ms: 760
+        text: '{"merchant": "Restoran Contoh Nusantara", "date": "2026-08-12", "currency": "IDR", "total": 153615, "payment_method": "card", "items": [{"name": "Nasi Goreng Kampung", "qty": 2, "line_total": 64000}, {"name": "Sate Ayam (10 tusuk)", "qty": 1, "line_total": 45000}, {"name": "Es Jeruk", "qty": 2, "line_total": 24000}]}'

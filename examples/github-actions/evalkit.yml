@@ -1,0 +1,110 @@
+# Example: gate a pull request on LLM behaviour.
+#
+# Copy to .github/workflows/evalkit.yml in your repository and adjust the suite
+# path. On every PR it runs the suite on the base commit and on the PR head,
+# compares the two with `evalkit diff`, posts the Markdown report as a PR
+# comment, and fails the check on a statistically significant regression.
+#
+# The response cache is restored between runs, so the base-commit run is usually
+# served from cache and only changed prompts/models cost tokens.
+#
+# Required secret (only for real providers): ANTHROPIC_API_KEY, or whatever your
+# suite's provider reads. Fork PRs do not receive secrets; restrict accordingly.
+
+name: llm-evals
+
+on:
+  pull_request:
+    paths:
+      - "prompts/**"
+      - "evals/**"
+
+permissions:
+  contents: read
+  pull-requests: write # to post the report comment
+
+concurrency:
+  group: llm-evals-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SUITE: evals/suite.yaml
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install evalkit
+        # Not published to PyPI: install from your fork/checkout, pinned to a tag or SHA.
+        run: pip install "evalkit @ git+https://github.com/dwijamahardika/evalkit@main"
+
+      - name: Restore response cache
+        uses: actions/cache@v4
+        with:
+          path: .evalkit-cache
+          key: evalkit-${{ hashFiles('evals/**', 'prompts/**') }}
+          restore-keys: evalkit-
+
+      - name: Validate suite (no model calls)
+        run: evalkit validate "$SUITE"
+
+      - name: Baseline (PR base commit)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVALKIT_CACHE_DIR: ${{ github.workspace }}/.evalkit-cache
+        run: |
+          git worktree add ../base "${{ github.event.pull_request.base.sha }}"
+          set +e
+          (cd ../base && evalkit run "$SUITE" --out "$GITHUB_WORKSPACE/runs/base.jsonl" \
+             --label sha="${{ github.event.pull_request.base.sha }}" --quiet)
+          code=$?
+          # 1 = the base itself misses its gate: still a valid baseline to diff against.
+          if [ "$code" -ge 2 ]; then echo "baseline run failed (exit $code)"; exit "$code"; fi
+
+      - name: Candidate (PR head)
+        id: candidate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVALKIT_CACHE_DIR: ${{ github.workspace }}/.evalkit-cache
+        run: |
+          set +e
+          evalkit run "$SUITE" --out runs/head.jsonl --junit runs/head.junit.xml \
+            --label sha="${{ github.sha }}" --quiet
+          echo "run_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Diff
+        id: diff
+        run: |
+          set +e
+          evalkit diff runs/base.jsonl runs/head.jsonl --markdown runs/diff.md
+          echo "diff_exit=$?" >> "$GITHUB_OUTPUT"
+          cat runs/diff.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on the PR
+        if: always() && hashFiles('runs/diff.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file runs/diff.md
+
+      - name: Upload run files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evalkit-runs
+          path: runs/
+
+      # Exit codes: 0 ok, 1 regression / gate failed, 2 invalid input, 3 provider errors.
+      - name: Gate
+        run: |
+          echo "candidate run exit: ${{ steps.candidate.outputs.run_exit }}"
+          echo "diff exit: ${{ steps.diff.outputs.diff_exit }}"
+          test "${{ steps.diff.outputs.diff_exit }}" = "0"

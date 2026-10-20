@@ -1,0 +1,238 @@
+# Structured extraction from synthetic Indonesian shop receipts.
+#
+# All merchants, addresses and amounts are invented ("Contoh", "Fiktif", "Sampel"
+# and "Uji Coba" mean example / fictional / sample / trial). The suite runs on the
+# offline `fake` provider so the demo needs no API key; swap `provider:` for the
+# anthropic or openai block at the bottom of this file to run it for real.
+version: 1
+name: receipts-extraction
+description: Indonesian receipt text -> JSON (merchant, date, total, payment method, items)
+
+provider:
+  type: fake
+  model: fake-extractor-a          # `evalkit run --model fake-extractor-b` = the candidate
+  script: fake_model.yaml
+
+judge:
+  provider:
+    type: fake
+    model: fake-judge
+    script: fake_judge.yaml
+  calibration: calibration.json    # written by `evalkit calibrate`
+  min_kappa: 0.6                   # below this the judge is advisory, not a gate
+
+run:
+  trials: 10
+  concurrency: 8
+  max_attempts: 5
+  backoff_base_s: 0.05             # tiny because the fake provider's 429s are scripted
+  backoff_cap_s: 1.0
+
+gate:
+  min_pass_rate: 0.8               # per case
+  min_suite_pass_rate: 0.9
+
+prices: prices.yaml
+
+prompt:
+  system: |
+    You extract structured data from Indonesian shop receipts (struk belanja).
+    Reply with one JSON object and nothing else:
+    {"merchant": string, "date": "YYYY-MM-DD", "currency": "IDR", "total": integer,
+     "payment_method": "cash" | "card" | "qris" | "transfer" | "other",
+     "items": [{"name": string, "qty": number, "line_total": integer}]}
+    Rules:
+    - Amounts are whole rupiah. Receipts use "." for thousands and "," for decimals:
+      "Rp 45.500" is 45500 and "Rp 1.250.000,00" is 1250000. "rb" means thousand.
+    - `total` is what the customer owes after discounts and taxes: not the cash
+      tendered (TUNAI) and not the change (KEMBALI).
+    - Dates on receipts are day/month/year. If there are several, use the
+      transaction (or drop-off) date.
+    - Items are purchased lines only: never discounts, taxes, fees or payments.
+  messages:
+    - role: user
+      content: |
+        <receipt>
+        {{ receipt }}
+        </receipt>
+
+defaults:
+  assert:
+    - type: json_schema
+      schema: receipt.schema.json
+    - type: max_latency_ms
+      value: 3000
+    - type: max_cost_usd
+      value: 0.002
+    - type: llm_judge
+      name: faithful_items
+      rubric: |
+        The response is JSON extracted from the receipt in <task>. Grade only
+        faithfulness: the merchant name matches the receipt header, and every
+        entry in `items` is a purchased line that appears on the receipt (no
+        invented items; discounts, taxes and payments are not items). Ignore
+        totals, dates and payment method.
+
+cases:
+  - id: minimarket-cash
+    description: total must not be confused with TUNAI (cash tendered)
+    tags: [cash, change]
+    inputs:
+      receipt: |
+        MINIMARKET UJI COBA 24 JAM
+        Jl. Contoh Raya No. 12, Kota Fiktif
+        Tgl: 14/03/2026 08:41   Kasir: DEMO-01
+        --------------------------------------
+        Roti Tawar Gandum     1 x 18.500   18.500
+        Susu UHT Coklat 1L    1 x 19.900   19.900
+        Air Mineral 600ml     2 x  3.550    7.100
+        --------------------------------------
+        Total belanja                Rp 45.500
+        TUNAI                        Rp 50.000
+        KEMBALI                       Rp 4.500
+    assert:
+      - {type: numeric_close, path: total, expected: 45500, abs_tol: 0.5}
+      - {type: equals, path: payment_method, value: cash}
+      - {type: equals, path: date, value: "2026-03-14"}
+
+  - id: warung-ribuan
+    description: informal "rb" (ribu = thousand) amounts
+    tags: [cash, informal]
+    inputs:
+      receipt: |
+        WARUNG MAKAN FIKTIF BU SAMPEL
+        Kota Contoh - 02/04/2026
+        Nasi + ayam goreng      2   36rb
+        Es teh manis            2    8rb
+        Kerupuk                 3    6rb
+        TOTAL                       50rb
+        Bayar: tunai
+    assert:
+      - {type: numeric_close, path: total, expected: 50000, abs_tol: 0.5}
+      - {type: equals, path: payment_method, value: cash}
+      - {type: equals, path: date, value: "2026-04-02"}
+
+  - id: apotek-ppn
+    description: VAT (PPN 11%) line and comma decimals
+    tags: [card, tax]
+    inputs:
+      receipt: |
+        APOTEK SAMPEL SEHAT
+        Jl. Fiktif No. 7
+        Tanggal : 21/05/2026  Jam: 19:02
+        Paracetamol 500mg strip   2   12.000   24.000
+        Vitamin C 1000 tab        1   96.000   96.000
+                             Subtotal  Rp 120.000
+                             PPN 11%   Rp  13.200
+                             TOTAL     Rp 133.200,00
+        DEBIT                          Rp 133.200,00
+    assert:
+      - {type: numeric_close, path: total, expected: 133200, abs_tol: 0.5}
+      - {type: equals, path: payment_method, value: card}
+      - {type: equals, path: date, value: "2026-05-21"}
+
+  - id: toko-bangunan-large
+    description: seven-figure total with thousands dots and decimal comma
+    tags: [transfer, large-amount]
+    inputs:
+      receipt: |
+        TOKO BANGUNAN CONTOH MAKMUR
+        Kota Fiktif
+        Faktur: INV/2026/06/0412    Tgl 03/06/2026
+        Semen 50kg          10 sak x 65.000      650.000
+        Cat tembok 5kg       4 klg x 150.000     600.000
+        ---------------------------------------------
+        GRAND TOTAL                     Rp 1.250.000,00
+        Pembayaran: Transfer Bank
+    assert:
+      - {type: numeric_close, path: total, expected: 1250000, abs_tol: 0.5}
+      - {type: equals, path: payment_method, value: transfer}
+      - {type: equals, path: date, value: "2026-06-03"}
+
+  - id: kedai-kopi-diskon
+    description: discount line must reduce the total but not appear as an item
+    tags: [qris, discount]
+    inputs:
+      receipt: |
+        KEDAI KOPI DEMO
+        25/06/2026 15:20
+        Kopi Susu Gula Aren     2    44.000
+        Croissant Mentega       1    27.000
+        DISKON MEMBER 10%           -7.100
+        TOTAL                       63.900
+        QRIS                        63.900
+    assert:
+      - {type: numeric_close, path: total, expected: 63900, abs_tol: 0.5}
+      - {type: equals, path: payment_method, value: qris}
+      - {type: equals, path: date, value: "2026-06-25"}
+
+  - id: laundry-qris
+    description: two dates (drop-off and pickup) and a fractional quantity "4,5 kg"
+    tags: [qris, fractional]
+    inputs:
+      receipt: |
+        LAUNDRY SAMPEL BERSIH
+        Jl. Contoh Gang 3
+        Masuk: 01/07/2026  Ambil: 03/07/2026
+        Cuci setrika  4,5 kg x 8.000   36.000
+        TOTAL BAYAR                Rp 36.000
+        Metode: QRIS
+    assert:
+      - {type: numeric_close, path: total, expected: 36000, abs_tol: 0.5}
+      - {type: numeric_close, path: items.0.qty, expected: 4.5, abs_tol: 0.001}
+      - {type: equals, path: payment_method, value: qris}
+      - {type: equals, path: date, value: "2026-07-01"}
+
+  - id: bengkel-transfer
+    description: payment method stated in free text
+    tags: [transfer]
+    inputs:
+      receipt: |
+        BENGKEL FIKTIF MOTOR JAYA
+        Nota No. 0088   Tgl: 09/07/2026
+        Ganti oli mesin          1    55.000
+        Kampas rem depan         1    85.000
+        Jasa servis              1    40.000
+        TOTAL                   Rp 180.000
+        Dibayar via transfer bank
+    assert:
+      - {type: numeric_close, path: total, expected: 180000, abs_tol: 0.5}
+      - {type: equals, path: payment_method, value: transfer}
+      - {type: equals, path: date, value: "2026-07-09"}
+
+  - id: restoran-service-pb1
+    description: service charge and restaurant tax (PB1) on top of the subtotal
+    tags: [card, tax]
+    inputs:
+      receipt: |
+        RESTORAN CONTOH NUSANTARA
+        Meja 7  -  12/08/2026 20:15
+        Nasi Goreng Kampung   2 x 32.000    64.000
+        Sate Ayam (10 tusuk)  1 x 45.000    45.000
+        Es Jeruk              2 x 12.000    24.000
+        Subtotal                           133.000
+        Service 5%                           6.650
+        PB1 10%                             13.965
+        TOTAL                          Rp 153.615
+        KARTU KREDIT                   Rp 153.615
+    assert:
+      - {type: numeric_close, path: total, expected: 153615, abs_tol: 0.5}
+      - {type: equals, path: payment_method, value: card}
+      - {type: equals, path: date, value: "2026-08-12"}
+
+# To run against a real model, replace `provider:` (and `judge.provider:`) with e.g.
+#
+#   provider:
+#     type: anthropic
+#     model: claude-opus-5-5        # the default; any Messages API model id works
+#     effort: low                   # optional: low | medium | high | xhigh | max
+#
+#   provider:
+#     type: openai                  # any OpenAI-compatible /chat/completions server
+#     base_url: http://127.0.0.1:8000/v1
+#     model: my-local-model
+#     api_key_env: null             # or the NAME of an env var holding the key
+#     temperature: 0.7
+#
+# then add the model to prices.yaml (after checking the provider's pricing page)
+# and re-run `evalkit calibrate`: a different judge invalidates calibration.json.

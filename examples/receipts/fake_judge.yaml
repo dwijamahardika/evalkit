@@ -1,0 +1,27 @@
+# Scripted judge for the offline demo. It sees the rubric, the task and the
+# response, and replies with {"reason": ..., "score": 1-5}.
+#
+# It catches the invented "Kantong Plastik" (plastic bag) item, and - like a real
+# judge - it is not perfect: on one restaurant trial it wrongly docks the item
+# name "Sate Ayam (10 tusuk)". `evalkit calibrate` measures exactly this.
+
+rules:
+  - when: '"Kantong Plastik"'
+    responses:
+      - latency_ms: 420
+        text: '{"reason": "Lists Kantong Plastik, which is not a purchased line on the receipt.", "score": 2}'
+
+  - when: RESTORAN CONTOH NUSANTARA
+    responses:
+      - repeat: 5
+        latency_ms: 450
+        text: '{"reason": "Merchant and all items match the receipt.", "score": 5}'
+      - latency_ms: 470
+        text: '{"reason": "Item name includes the quantity note (10 tusuk); may not match the menu item.", "score": 3}'
+      - repeat: 4
+        latency_ms: 440
+        text: '{"reason": "Merchant and all items match the receipt.", "score": 5}'
+
+default:
+  latency_ms: 400
+  text: '{"reason": "Merchant and all items match the receipt.", "score": 5}'

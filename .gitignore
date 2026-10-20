@@ -1,0 +1,40 @@
+# environment / secrets
+.env
+.env.*
+!.env.example
+
+# virtualenvs
+.venv/
+venv/
+env/
+
+# python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# evalkit outputs
+runs/
+*.jsonl
+.evalkit-cache/
+*.junit.xml
+
+# local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# editors / OS
+.idea/
+.vscode/
+.DS_Store

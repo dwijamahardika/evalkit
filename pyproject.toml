@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "evalkit"
+version = "0.1.0"
+description = "LLM regression testing that runs in CI like unit tests."
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = ["llm", "evaluation", "regression-testing", "ci", "statistics"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "anthropic>=1.15,<2",
+    "httpx2>=2.15",
+    "jsonschema>=4.23",
+    "pydantic>=2.9,<3",
+    "PyYAML>=6.0",
+    "typer>=0.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis>=6.100",
+    "mypy>=1.15",
+    "pytest>=8.3",
+    "ruff>=0.15",
+    "scipy>=1.14",          # test oracle for the statistics module only
+    "types-jsonschema",
+    "types-PyYAML",
+]
+
+[project.scripts]
+evalkit = "evalkit.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/evalkit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "PT", "C4", "PERF", "N", "S", "TID"]
+ignore = [
+    "S101",   # assert is fine in tests and for internal invariants
+    "S311",   # random is used for jitter/bootstrap, not cryptography
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+"bench/**" = ["S"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests", "bench"]
+warn_unreachable = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["scipy", "scipy.*"]
+ignore_missing_imports = true

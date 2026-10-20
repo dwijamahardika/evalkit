@@ -1,0 +1,18 @@
+# USD per million tokens.
+#
+# EXAMPLE VALUES ONLY. evalkit does not ship authoritative prices: they change,
+# differ by platform and tier, and may have tiers this file does not model
+# (e.g. long-context pricing). Check your provider's current pricing page before
+# you rely on any cost number evalkit prints.
+#
+# The fake-* models are invented so the offline demo has something to multiply.
+models:
+  fake-extractor-a: {input_per_mtok: 1.00, output_per_mtok: 5.00}
+  fake-extractor-b: {input_per_mtok: 1.00, output_per_mtok: 5.00}
+  fake-judge: {input_per_mtok: 0.50, output_per_mtok: 2.00}
+
+  # Anthropic list prices as published at the time of writing (October 2026).
+  # Verify before use.
+  claude-opus-5-5: {input_per_mtok: 4.00, output_per_mtok: 20.00, cache_read_per_mtok: 0.20}
+  claude-sonnet-5-5: {input_per_mtok: 2.00, output_per_mtok: 10.00, cache_read_per_mtok: 0.20}
+  claude-haiku-5-5: {input_per_mtok: 0.10, output_per_mtok: 0.50}  # prompts up to 100K tokens
